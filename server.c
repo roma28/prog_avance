@@ -50,13 +50,23 @@ char* check_file(char* filename, struct stat* last_checked)
   if(fstat(f, &stat) != 0)
   {
     printf("Error getting filestats: %s\n", strerror(errno));
+    close(f);
+    return NULL;
+  }
+  if(stat.st_size==0)
+  {
+    close(f);
     return NULL;
   }
 
   if(stat.st_mtime != last_checked->st_mtime)
   {
     file_buff = mmap(NULL, stat.st_size, PROT_READ, MAP_PRIVATE, f, 0);
-    if(file_buff == MAP_FAILED) file_buff = NULL;
+    if(file_buff == MAP_FAILED)
+    {
+      printf("Mapping failed: %s\n", strerror(errno));
+      file_buff = NULL;
+    }
   }
 
   close(f);
@@ -130,7 +140,7 @@ int main(int argc, char* argv[])
 
       if(munmap(filebuff, lc.st_size)!=0)
       {
-        printf("Filemapping failed: %s\n", strerror(errno));
+        printf("File unmapping failed: %s\n", strerror(errno));
       }
     }
 

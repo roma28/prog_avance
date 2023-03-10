@@ -16,8 +16,6 @@ int main(int argc, char *argv[])
 
   struct sockaddr_in server;
 
-  int size;
-  int port;
   char* ip = malloc(20*sizeof(char));
 
   if(argc != 3)
@@ -26,15 +24,15 @@ int main(int argc, char *argv[])
     return -1;
   }
 
-  int port;
-  sscanf(argv[1],"%d", &port);
+  int port = 8080;
+  // sscanf(argv[1],"%d", &port);
 
 
   int client_socket = socket(AF_INET, SOCK_STREAM, 0);
 
   server.sin_addr.s_addr  = inet_addr("127.0.0.1");
   server.sin_family = AF_INET;
-  server.sin_port = htons(port);
+  server.sin_port = htons(8080);
 
   if(connect(client_socket, (struct sockaddr*) &server, sizeof(server)) < 0)
   {
@@ -42,3 +40,10 @@ int main(int argc, char *argv[])
     return -1;
   }
   printf("Connected\n");
+
+  char c;
+  while(recv(client_socket, &c, 1, 0))
+  {
+    printf("%c", c);
+  };
+}
