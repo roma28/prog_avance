@@ -1,26 +1,18 @@
 #include <fcntl.h>
-#include <sys/types.h>
 #include <sys/stat.h>
 #include <stdio.h>
 #include <time.h>
 #include <unistd.h>
-
-#include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-#include <signal.h>
-#include <arpa/inet.h>
-
-#include <sys/types.h>
 #include <sys/mman.h>
 #include <string.h>
 #include <errno.h>
+#include <stdlib.h>
 
 #include "logger.h"
 
 int create_socket(int port) {
-    socklen_t c = (socklen_t) sizeof(struct sockaddr_in);
-
     struct sockaddr_in server_addr, client_addr;
 
     server_addr.sin_family = AF_INET;
@@ -58,7 +50,7 @@ char *check_file(char *filename, struct stat *last_checked) {
     if (stat.st_mtime != last_checked->st_mtime) {
         file_buff = mmap(NULL, stat.st_size, PROT_READ, MAP_PRIVATE, f, 0);
         if (file_buff == MAP_FAILED) {
-            LOG_ERROR("Mapping failed: %s\n", strerror(errno));
+            LOG_ERROR("Mapping file %s failed: %s\n", filename, strerror(errno));
             file_buff = NULL;
         }
     }
@@ -69,8 +61,8 @@ char *check_file(char *filename, struct stat *last_checked) {
 }
 
 int sendall(int s, char *buf, off_t *len) {
-    int total = 0;        // how many bytes we've sent
-    int bytesleft = *len; // how many we have left to send
+    off_t total = 0;
+    off_t bytesleft = *len;
     int n;
 
     while (total < *len) {
@@ -83,9 +75,9 @@ int sendall(int s, char *buf, off_t *len) {
         bytesleft -= n;
     }
 
-    *len = total; // return number actually sent here
+    *len = total;
 
-    return n == -1 ? -1 : 0; // return -1 on failure, 0 on success
+    return n;
 }
 
 int send_file(int socket, char *fbuf, struct stat fs) {
@@ -105,7 +97,7 @@ int send_file(int socket, char *fbuf, struct stat fs) {
 int main(int argc, char *argv[]) {
 
     logger_initConsoleLogger(stdout);
-    logger_setLevel(LogLevel_DEBUG);
+    logger_setLevel(LogLevel_INFO);
 
     if (argc != 3) {
         LOG_FATAL("The program takes 2 argument, but %d given\nUsage: %s [port] [file]\n", argc - 1, argv[0]);
@@ -113,9 +105,12 @@ int main(int argc, char *argv[]) {
     }
 
     int port;
-    sscanf(argv[1], "%d", &port);
+    port = strtol(argv[1], NULL, 0);
+    if (port > 65535 || port <= 0) {
+        LOG_FATAL("Incorrect port value: %d", port);
+        return -1;
+    }
 
-    // wait_for_connection:
     int server_socket = create_socket(port);
 
     int client_socket;
@@ -130,13 +125,13 @@ int main(int argc, char *argv[]) {
 
     struct stat lc;
     while (1) {
-
         char *filebuff = check_file(argv[2], &lc);
         if (filebuff) {
-            LOG_DEBUG("File of size %d is sucessfully mapped", lc.st_size);
+            LOG_DEBUG("File of size %d is mapped", lc.st_size);
             send_file(client_socket, filebuff, lc);
             if (munmap(filebuff, lc.st_size) != 0) {
                 LOG_ERROR("Unmapping failed: %s\n", strerror(errno));
+                return -1;
             }
         }
     }

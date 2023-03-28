@@ -1,0 +1,8 @@
+/client
+/*.o
+/.PVS-Studio/compile_commands.json
+/logger.o
+/M1
+/M2
+/Makefile2
+/.vscode/settings.json
