@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+<img src='1.jpg' id='img0'>
+<img src='2.jpg' id='img1'>
+<script>
+    setInterval(function () {
+        document.querySelectorAll('img').forEach(function (i) {
+            i.src = i.src + '';
+        });
+    }, 100);
+    </script>
+</body>
+</html>

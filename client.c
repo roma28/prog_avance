@@ -27,8 +27,14 @@ struct listener_thread {
 struct listener_thread *read_config(int *n) {
     char str_buff[256];
     FILE *cf = fopen("client_config", "r");
+
+    if (!cf) {
+        LOG_FATAL("No valid config file found");
+        exit(-1);
+    }
+
     fgets(str_buff, 255, cf);
-    int n_servers = strtol(str_buff, NULL, 0);
+    long n_servers = strtol(str_buff, NULL, 0);
     if (n_servers <= 0) {
         fclose(cf);
         LOG_FATAL("Error in config line: %s", str_buff);
@@ -44,8 +50,8 @@ struct listener_thread *read_config(int *n) {
         LOG_TRACE("Parsing string %s", str_buff);
         config[i].ip = malloc(16 * sizeof(char));
         config[i].filename = malloc(255 * sizeof(char));
-        int n;
-        if ((n=sscanf(str_buff, "%s %d %s", config[i].ip, &(config[i].port), config[i].filename)) != 3) {
+        int n_args = sscanf(str_buff, "%s %d %s", config[i].ip, &(config[i].port), config[i].filename);
+        if (n_args != 3) {
             LOG_FATAL("Error in config line: %s only %d parameters of 3 found", str_buff, n);
             fclose(cf);
             exit(-1);
@@ -108,14 +114,50 @@ void *thread_function(void *param) {
     return NULL;
 }
 
+void create_html(int n_images, struct listener_thread *cfg, int update_delay) {
+    FILE *html = fopen("main.html", "w");
+
+    if (!html) {
+        LOG_FATAL("Error creating HTML file: %s", strerror(errno));
+    }
+
+    fprintf(html, "<!DOCTYPE html>\n"
+                  "<html lang=\"en\">\n"
+                  "<head>\n"
+                  "    <meta charset=\"UTF-8\">\n"
+                  "    <title>Title</title>\n"
+                  "</head>\n"
+                  "<body>\n");
+
+    for (int i = 0; i < n_images; ++i) {
+        fprintf(html, "<img src='%s' id='img%d'>\n", cfg[i].filename, i);
+        fprintf(html, "<br>\n");
+    }
+
+    fprintf(html, "<script>\n"
+                  "    setInterval(function () {\n"
+                  "        document.querySelectorAll('img').forEach(function (i) {\n"
+                  "            i.src = i.src + '';\n"
+                  "        });\n"
+                  "    }, %d);\n"
+                  "    </script>\n", update_delay);
+
+    fprintf(html, "</body>\n"
+                  "</html>");
+
+    fflush(html);
+    fclose(html);
+}
+
 
 int main(int argc, char *argv[]) {
-
     logger_initConsoleLogger(stdout);
     logger_setLevel(LogLevel_INFO);
 
     int n_threads = 0;
     struct listener_thread *cfg = read_config(&n_threads);
+
+    create_html(n_threads, cfg, 100);
 
     for (size_t i = 0; i < n_threads; ++i) {
         LOG_DEBUG("Creating thread %d", cfg[i].thread_num);

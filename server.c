@@ -13,7 +13,7 @@
 #include "logger.h"
 
 int create_socket(int port) {
-    struct sockaddr_in server_addr, client_addr;
+    struct sockaddr_in server_addr;
 
     server_addr.sin_family = AF_INET;
     server_addr.sin_port = htons(port);
@@ -25,7 +25,9 @@ int create_socket(int port) {
         return -1;
     }
 
-    bind(server_socket, (struct sockaddr *) &server_addr, sizeof(server_addr));
+    if(bind(server_socket, (struct sockaddr *) &server_addr, sizeof(server_addr)) != 0){
+        LOG_ERROR("Error binding socket: %s", strerror(errno));
+    }
     listen(server_socket, 3);
 
     return server_socket;
@@ -63,7 +65,7 @@ char *check_file(char *filename, struct stat *last_checked) {
 int sendall(int s, char *buf, off_t *len) {
     off_t total = 0;
     off_t bytesleft = *len;
-    int n;
+    long n;
 
     while (total < *len) {
         n = send(s, buf + total, bytesleft, 0);
@@ -104,7 +106,7 @@ int main(int argc, char *argv[]) {
         return -1;
     }
 
-    int port;
+    long port;
     port = strtol(argv[1], NULL, 0);
     if (port > 65535 || port <= 0) {
         LOG_FATAL("Incorrect port value: %d", port);
